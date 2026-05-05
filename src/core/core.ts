@@ -619,6 +619,17 @@ export class OpenACPCore {
     // 1-3. Spawn/resume agent, create Session, register in SessionManager
     const session = await this.sessionFactory.create(params);
 
+    if (
+      params.channelId === "discord"
+      && params.agentName.toLowerCase() === "gemini"
+      && !session.clientOverrides?.bypassPermissions
+    ) {
+      session.clientOverrides = {
+        ...(session.clientOverrides ?? {}),
+        bypassPermissions: true,
+      };
+    }
+
     // Apply thread ID: pre-created thread takes priority over params.threadId
     const resolvedThreadId = preCreatedThreadId ?? params.threadId;
     if (resolvedThreadId) {
@@ -662,6 +673,7 @@ export class OpenACPCore {
       lastActiveAt: new Date().toISOString(),
       name: session.name,
       isAssistant: params.isAssistant,
+      clientOverrides: session.clientOverrides,
       platform,
       platforms,
       firstAgent: session.firstAgent,

@@ -307,6 +307,92 @@ describe("OpenACPCore", () => {
     });
   });
 
+  describe("createSession()", () => {
+    it("enables and persists bypassPermissions for new Discord Gemini sessions", async () => {
+      const discord = mockAdapter();
+      core.registerAdapter("discord", discord);
+
+      const fakeSession = {
+        id: "sess-discord-gemini",
+        channelId: "discord",
+        agentName: "gemini",
+        workingDirectory: "/tmp/gemini",
+        clientOverrides: {},
+        status: "initializing",
+        createdAt: new Date("2026-05-05T00:00:00Z"),
+        name: undefined,
+        threadId: undefined,
+        firstAgent: "gemini",
+        promptCount: 0,
+        agentSwitchHistory: [],
+        toAcpStateSnapshot: vi.fn().mockReturnValue({}),
+      } as any;
+
+      vi.spyOn(core.sessionFactory, "create").mockResolvedValue(fakeSession);
+      vi.spyOn(core.sessionFactory, "wireSideEffects").mockImplementation(() => {});
+      const patchSpy = vi.spyOn(core.sessionManager, "patchRecord").mockResolvedValue(undefined);
+      vi.spyOn(core, "createBridge").mockReturnValue({ connect: vi.fn() } as any);
+
+      await core.createSession({
+        channelId: "discord",
+        agentName: "gemini",
+        workingDirectory: "/tmp/gemini",
+      });
+
+      expect(fakeSession.clientOverrides).toEqual({ bypassPermissions: true });
+      expect(patchSpy).toHaveBeenCalledWith(
+        "sess-discord-gemini",
+        expect.objectContaining({
+          channelId: "discord",
+          agentName: "gemini",
+          clientOverrides: { bypassPermissions: true },
+        }),
+        { immediate: true },
+      );
+    });
+
+    it("does not change bypassPermissions for other agents", async () => {
+      const discord = mockAdapter();
+      core.registerAdapter("discord", discord);
+
+      const fakeSession = {
+        id: "sess-discord-claude",
+        channelId: "discord",
+        agentName: "claude",
+        workingDirectory: "/tmp/claude",
+        clientOverrides: {},
+        status: "initializing",
+        createdAt: new Date("2026-05-05T00:00:00Z"),
+        name: undefined,
+        threadId: undefined,
+        firstAgent: "claude",
+        promptCount: 0,
+        agentSwitchHistory: [],
+        toAcpStateSnapshot: vi.fn().mockReturnValue({}),
+      } as any;
+
+      vi.spyOn(core.sessionFactory, "create").mockResolvedValue(fakeSession);
+      vi.spyOn(core.sessionFactory, "wireSideEffects").mockImplementation(() => {});
+      const patchSpy = vi.spyOn(core.sessionManager, "patchRecord").mockResolvedValue(undefined);
+      vi.spyOn(core, "createBridge").mockReturnValue({ connect: vi.fn() } as any);
+
+      await core.createSession({
+        channelId: "discord",
+        agentName: "claude",
+        workingDirectory: "/tmp/claude",
+      });
+
+      expect(fakeSession.clientOverrides).toEqual({});
+      expect(patchSpy).toHaveBeenCalledWith(
+        "sess-discord-claude",
+        expect.objectContaining({
+          clientOverrides: {},
+        }),
+        { immediate: true },
+      );
+    });
+  });
+
   describe("start()", () => {
     it("starts all adapters", async () => {
       await core.start();
